@@ -8,3 +8,8 @@ pytesseract==0.3.13
 Pillow==11.0.0
 requests==2.32.3
 beautifulsoup4==4.12.3
+fastapi
+uvicorn
+jinja2
+python-multipart
+httpx
