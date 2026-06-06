@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talaba Bot - Admin Dashboard</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ChartJS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Style -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    <div class="layout-container">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fa-solid fa-user-shield"></i>
+                <span class="text-gradient-purple">Bot Admin</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-item active" onclick="showTab('dashboard')" id="sidebar_dashboard">
+                    <a href="javascript:void(0)"><i class="fa-solid fa-chart-pie"></i> Statistika</a>
+                </li>
+                <li class="sidebar-item" onclick="showTab('payments')" id="sidebar_payments">
+                    <a href="javascript:void(0)"><i class="fa-solid fa-credit-card"></i> To'lovlar</a>
+                </li>
+                <li class="sidebar-item" onclick="showTab('users')" id="sidebar_users">
+                    <a href="javascript:void(0)"><i class="fa-solid fa-users"></i> Foydalanuvchilar</a>
+                </li>
+                <li class="sidebar-item" onclick="showTab('books')" id="sidebar_books">
+                    <a href="javascript:void(0)"><i class="fa-solid fa-book"></i> Kitoblar</a>
+                </li>
+                <li class="sidebar-item" onclick="showTab('templates')" id="sidebar_templates">
+                    <a href="javascript:void(0)"><i class="fa-solid fa-palette"></i> Shablonlar</a>
+                </li>
+                <li class="sidebar-item" onclick="showTab('channels')" id="sidebar_channels">
+                    <a href="javascript:void(0)"><i class="fa-solid fa-link"></i> Kanallar</a>
+                </li>
+                <li class="sidebar-item" onclick="showTab('broadcast')" id="sidebar_broadcast">
+                    <a href="javascript:void(0)"><i class="fa-solid fa-bullhorn"></i> Xabar yuborish</a>
+                </li>
+                <li class="sidebar-item" onclick="showTab('settings')" id="sidebar_settings">
+                    <a href="javascript:void(0)"><i class="fa-solid fa-gears"></i> Sozlamalar</a>
+                </li>
+            </ul>
+            
+            <div style="margin-top:auto;">
+                <a href="/admin/logout" class="btn-secondary-glow" style="display:flex; justify-content:center; gap:8px;"><i class="fa-solid fa-right-from-bracket"></i> Chiqish</a>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            
+            <!-- SECTION 1: DASHBOARD STATS -->
+            <div id="sectionDashboard" class="webapp-screen active">
+                <h2 style="margin-bottom: 24px;">📊 Bot Statistikasi</h2>
+                
+                <div class="grid-container">
+                    <div class="glass-card">
+                        <span style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">JAMI FOYDALANUVCHILAR</span>
+                        <h2>{{ stats.total }} ta</h2>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">PREMIUM STATUSLILAR</span>
+                        <h2 style="color:var(--success);">{{ stats.premium }} ta</h2>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">BUGUN QO'SHILGANLAR</span>
+                        <h2 style="color:var(--secondary);">{{ stats.new_today }} ta</h2>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">KUTUBXONA KITOBLARI</span>
+                        <h2>{{ stats.books }} ta</h2>
+                    </div>
+                </div>
+
+                <!-- Charts layout -->
+                <div class="grid-container" style="grid-template-columns: 2fr 1.2fr;">
+                    <div class="glass-card">
+                        <h4>Kuzatuv QR kodlari ulushi (Referrals)</h4>
+                        <div class="chart-container">
+                            <canvas id="sourceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <h4>Admin tezkor havolalari</h4>
+                        <p style="font-size:13px; margin: 10px 0 20px 0;">Telegramdan tashqarida ushbu boshqaruv panelini tekshirish uchun ishlatishingiz mumkin.</p>
+                        
+                        <a href="/" target="_blank" class="btn-premium" style="width:100%; justify-content:center; margin-bottom:12px;">
+                            <i class="fa-solid fa-mobile-screen"></i> Student Ilovasini ochish
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 2: PAYMENTS APPROVAL -->
+            <div id="sectionPayments" class="webapp-screen">
+                <h2 style="margin-bottom: 24px;">💳 To'lovlarni tasdiqlash</h2>
+                <div class="custom-table-container">
+                    <table class="custom-table" id="paymentsTable">
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Summa</th>
+                                <th>Karta</th>
+                                <th>Vaqti</th>
+                                <th>Chek</th>
+                                <th>Amallar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentsList">
+                            <!-- Dynamically loaded -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 3: USERS LIST -->
+            <div id="sectionUsers" class="webapp-screen">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+                    <h2>👥 Foydalanuvchilar Ro'yxati</h2>
+                    <input class="form-control" id="searchUser" placeholder="Qidirish (ID yoki Ism)..." style="max-width:300px;" oninput="filterUsersTable()">
+                </div>
+                
+                <div class="custom-table-container">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Telegram ID</th>
+                                <th>To'liq ism</th>
+                                <th>Foydalanuvchi nomi</th>
+                                <th>Status</th>
+                                <th>Qo'shilgan sana</th>
+                                <th>Amal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersList">
+                            <!-- Dynamically loaded -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION 4: BOOKS MANAGEMENT -->
+            <div id="sectionBooks" class="webapp-screen">
+                <h2 style="margin-bottom: 24px;">📚 Kutubxonani boshqarish</h2>
+                <div class="grid-container" style="grid-template-columns: 1.2fr 2fr;">
+                    
+                    <!-- Add book form -->
+                    <div class="glass-card">
+                        <h4>Yangi kitob qo'shish</h4>
+                        <form id="addBookForm" onsubmit="addBook(event)" style="margin-top:16px;">
+                            <div class="form-group">
+                                <label class="form-label">Kitob nomi (Sarlavha):</label>
+                                <input class="form-control" id="bookTitle" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bo'lim (Kategoriya):</label>
+                                <input class="form-control" id="bookCategory" placeholder="Masalan: Axborot Texnologiyalari" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Turi:</label>
+                                <select class="form-control" id="bookType">
+                                    <option value="pdf">📄 PDF Fayl</option>
+                                    <option value="audio">🎧 Audio Kitob</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Faylni tanlang:</label>
+                                <input class="form-control" type="file" id="bookFile" required>
+                            </div>
+                            <button type="submit" class="btn-premium" style="width:100%; justify-content:center;">Kitobni yuklash</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Books list -->
+                    <div class="glass-card">
+                        <h4>Kitoblar ro'yxati</h4>
+                        <div class="custom-table-container" style="margin-top:16px;">
+                            <table class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nomi</th>
+                                        <th>Bo'lim</th>
+                                        <th>Turi</th>
+                                        <th>O'chirish</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="booksList">
+                                    <!-- Dynamically loaded -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 5: PPTX TEMPLATES -->
+            <div id="sectionTemplates" class="webapp-screen">
+                <h2 style="margin-bottom: 24px;">🎨 Slayd shablonlarini boshqarish</h2>
+                <div class="grid-container" style="grid-template-columns: 1.2fr 2fr;">
+                    
+                    <div class="glass-card">
+                        <h4>Yangi shablon qo'shish</h4>
+                        <form id="addTemplateForm" onsubmit="addTemplate(event)" style="margin-top:16px;">
+                            <div class="form-group">
+                                <label class="form-label">Shablon nomi:</label>
+                                <input class="form-control" id="tplName" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bo'lim:</label>
+                                <input class="form-control" id="tplCategory" placeholder="Masalan: Biznes" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Faylni tanlang (.pptx):</label>
+                                <input class="form-control" type="file" id="tplFile" accept=".pptx" required>
+                            </div>
+                            <button type="submit" class="btn-premium" style="width:100%; justify-content:center;">Shablonni yuklash</button>
+                        </form>
+                    </div>
+                    
+                    <div class="glass-card">
+                        <h4>Mavjud shablonlar</h4>
+                        <div class="custom-table-container" style="margin-top:16px;">
+                            <table class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nomi</th>
+                                        <th>Bo'lim</th>
+                                        <th>O'chirish</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="templatesList">
+                                    <!-- Dynamically loaded -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 6: MANDATORY CHANNELS -->
+            <div id="sectionChannels" class="webapp-screen">
+                <h2 style="margin-bottom: 24px;">🔗 Homiylik / Majburiy kanallar</h2>
+                <div class="grid-container" style="grid-template-columns: 1.2fr 2fr;">
+                    
+                    <div class="glass-card">
+                        <h4>Kanal qo'shish</h4>
+                        <form id="addChannelForm" onsubmit="addChannel(event)" style="margin-top:16px;">
+                            <div class="form-group">
+                                <label class="form-label">Kanal nomi (Sarlavha):</label>
+                                <input class="form-control" id="chanTitle" placeholder="Masalan: 🎓 Talaba Uz" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Kanal havolasi (Username yoki Link):</label>
+                                <input class="form-control" id="chanUrl" placeholder="Masalan: @talaba_uz" required>
+                            </div>
+                            <button type="submit" class="btn-premium" style="width:100%; justify-content:center;">Kanalni qo'shish</button>
+                        </form>
+                    </div>
+                    
+                    <div class="glass-card">
+                        <h4>Kanallar ro'yxati</h4>
+                        <div class="custom-table-container" style="margin-top:16px;">
+                            <table class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nomi</th>
+                                        <th>Havola</th>
+                                        <th>O'chirish</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="channelsList">
+                                    <!-- Dynamically loaded -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 7: BROADCAST -->
+            <div id="sectionBroadcast" class="webapp-screen">
+                <h2 style="margin-bottom: 24px;">📢 Foydalanuvchilarga xabar yuborish</h2>
+                <div class="glass-card glow-card-primary" style="max-width:600px;">
+                    <form id="broadcastForm" onsubmit="sendBroadcast(event)">
+                        <div class="form-group">
+                            <label class="form-label">Xabar matni (HTML formatida):</label>
+                            <textarea class="form-control" id="broadcastText" style="min-height:200px;" placeholder="Xabarni yozing..." required></textarea>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="broadcastPin" style="width:18px; height:18px;">
+                            <label class="form-label" style="margin-bottom:0;" for="broadcastPin">Xabarni hammaga pin qilish (Qat'iy eslatma)</label>
+                        </div>
+                        <button type="submit" class="btn-premium" style="width:100%; justify-content:center;">Yuborishni boshlash</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- SECTION 8: SYSTEM CONFIG SETTINGS -->
+            <div id="sectionSettings" class="webapp-screen">
+                <h2 style="margin-bottom: 24px;">⚙️ Tizim sozlamalari</h2>
+                <div class="glass-card glow-card-primary" style="max-width:600px;">
+                    <form id="settingsForm" onsubmit="saveSettings(event)">
+                        <div class="form-group">
+                            <label class="form-label">Premium tarif narxi (so'm):</label>
+                            <input class="form-control" id="settingsPrice" value="{{ premium_price }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">To'lov kartasi (Humo/Uzcard):</label>
+                            <input class="form-control" id="settingsCard" value="{{ humo_card }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Admin kontakt (Telegram user):</label>
+                            <input class="form-control" id="settingsContact" value="{{ admin_contact }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Majburiy kanal:</label>
+                            <input class="form-control" id="settingsChannel" value="{{ mandatory_channel }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">WebApp Server URL:</label>
+                            <input class="form-control" id="settingsWebappUrl" value="{{ webapp_url }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Yangi Admin Login Paroli (O'zgartirish uchun yozing):</label>
+                            <input class="form-control" type="password" id="settingsPassword" placeholder="O'zgarishsiz qoldirish uchun bo'sh qoldiring">
+                        </div>
+                        <button type="submit" class="btn-premium" style="width:100%; justify-content:center;">Sozlamalarni saqlash</button>
+                    </form>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Init lists
+        let allUsers = [];
+
+        // Tab selection logic
+        function showTab(tabName) {
+            document.querySelectorAll('.webapp-screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+            
+            document.getElementById('section' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+            document.getElementById('sidebar_' + tabName).classList.add('active');
+            
+            // Reload context values if tabs clicked
+            if (tabName === 'payments') loadPayments();
+            if (tabName === 'users') loadUsers();
+            if (tabName === 'books') loadBooks();
+            if (tabName === 'templates') loadTemplates();
+            if (tabName === 'channels') loadChannels();
+        }
+
+        // CHART GENERATION
+        const ctx = document.getElementById('sourceChart').getContext('2d');
+        const sourceData = {
+            labels: ['Universitet (uni)', 'Bekat (bekat)', 'Ko\'chada (kocha)', 'Boshqa / Noma\'lum'],
+            datasets: [{
+                data: [
+                    {{ sources.get('uni', 0) }},
+                    {{ sources.get('bekat', 0) }},
+                    {{ sources.get('kocha', 0) }},
+                    {{ stats.total - (sources.get('uni', 0) + sources.get('bekat', 0) + sources.get('kocha', 0)) }}
+                ],
+                backgroundColor: ['#8a2be2', '#00bfff', '#ff007f', '#62677f'],
+                borderWidth: 1,
+                borderColor: 'var(--border-color)'
+            }]
+        };
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: sourceData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#f5f6fa' } }
+                }
+            }
+        });
+
+        // LOADS PAYMENTS
+        async function loadPayments() {
+            try {
+                const response = await fetch("/api/admin/payments");
+                const data = await response.json();
+                
+                const list = document.getElementById('paymentsList');
+                list.innerHTML = "";
+                
+                if (data.length === 0) {
+                    list.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Kutayotgan to'lovlar yo'q.</td></tr>`;
+                    return;
+                }
+                
+                data.forEach(p => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><code>${p.tg_id}</code></td>
+                        <td><strong>${p.amount.toLocaleString()} so'm</strong></td>
+                        <td>${p.card}</td>
+                        <td>${p.created}</td>
+                        <td>
+                            <a href="/api/admin/payments/view-proof/${p.proof_file_id}" target="_blank" class="btn-secondary-glow" style="padding:6px 12px; font-size:12px;">Chekni ko'rish</a>
+                        </td>
+                        <td>
+                            <button class="btn-premium" onclick="approvePayment(${p.id})" style="padding:6px 12px; font-size:12px; background:var(--success); box-shadow:none; margin-right:4px;">Tasdiqlash</button>
+                            <button class="btn-premium" onclick="rejectPayment(${p.id})" style="padding:6px 12px; font-size:12px; background:var(--danger); box-shadow:none;">Rad etish</button>
+                        </td>
+                    `;
+                    list.appendChild(row);
+                });
+            } catch(e) {
+                console.error("Payments load failed", e);
+            }
+        }
+
+        async function approvePayment(id) {
+            if (!confirm("To'lov tasdiqlansinmi? User premium qilinadi.")) return;
+            try {
+                const response = await fetch(`/api/admin/approve-payment/${id}`, { method: "POST" });
+                alert("To'lov tasdiqlandi!");
+                loadPayments();
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+        async function rejectPayment(id) {
+            if (!confirm("To'lov rad etilsinmi?")) return;
+            try {
+                const response = await fetch(`/api/admin/reject-payment/${id}`, { method: "POST" });
+                alert("To'lov rad etildi!");
+                loadPayments();
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+        // LOAD USERS
+        async function loadUsers() {
+            try {
+                const response = await fetch("/api/admin/users");
+                allUsers = await response.json();
+                renderUsersTable(allUsers);
+            } catch(e) { console.error("Users load failed", e); }
+        }
+
+        function renderUsersTable(users) {
+            const list = document.getElementById('usersList');
+            list.innerHTML = "";
+            
+            if (users.length === 0) {
+                list.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Foydalanuvchilar topilmadi.</td></tr>`;
+                return;
+            }
+            
+            users.forEach(u => {
+                const isPrem = u.status.startsWith("PREMIUM");
+                const actionBtn = isPrem
+                    ? `<button class="btn-premium" onclick="revokePremium(${u.tg_id})" style="padding:6px 12px; font-size:12px; background:var(--danger); box-shadow:none;">Revoke</button>`
+                    : `<button class="btn-premium" onclick="givePremium(${u.tg_id})" style="padding:6px 12px; font-size:12px; background:var(--success); box-shadow:none;">Give Premium (30d)</button>`;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><code>${u.tg_id}</code></td>
+                    <td>${u.full_name}</td>
+                    <td>${u.username ? '@' + u.username : ''}</td>
+                    <td><span class="badge ${isPrem ? 'badge-success' : 'badge-danger'}">${u.status}</span></td>
+                    <td>${u.created}</td>
+                    <td>${actionBtn}</td>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function filterUsersTable() {
+            const query = document.getElementById('searchUser').value.toLowerCase().trim();
+            if (!query) {
+                renderUsersTable(allUsers);
+                return;
+            }
+            const filtered = allUsers.filter(u => 
+                u.tg_id.toString().includes(query) || 
+                u.full_name.toLowerCase().includes(query) || 
+                u.username.toLowerCase().includes(query)
+            );
+            renderUsersTable(filtered);
+        }
+
+        async function givePremium(id) {
+            const days = prompt("Premium necha kunga berilsin?", "30");
+            if (!days || isNaN(days)) return;
+            
+            const form = new FormData();
+            form.append("tg_id", id);
+            form.append("days", days);
+            
+            try {
+                await fetch("/api/admin/give-premium", { method: "POST", body: form });
+                alert("Premium berildi!");
+                loadUsers();
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+        async function revokePremium(id) {
+            if (!confirm("Premium olib qo'yilsinmi?")) return;
+            const form = new FormData();
+            form.append("tg_id", id);
+            
+            try {
+                await fetch("/api/admin/revoke-premium", { method: "POST", body: form });
+                alert("Premium bekor qilindi!");
+                loadUsers();
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+        // LOAD BOOKS
+        async function loadBooks() {
+            try {
+                const response = await fetch("/api/library");
+                const data = await response.json();
+                
+                const list = document.getElementById('booksList');
+                list.innerHTML = "";
+                
+                let hasBooks = false;
+                for (let cat in data) {
+                    data[cat].forEach(book => {
+                        hasBooks = true;
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${book.title}</td>
+                            <td>${cat}</td>
+                            <td><span class="badge badge-info">PDF/Audio</span></td>
+                            <td>
+                                <button class="btn-premium" onclick="deleteBook(${book.id})" style="padding:6px 12px; font-size:12px; background:var(--danger); box-shadow:none;"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        `;
+                        list.appendChild(row);
+                    });
+                }
+                
+                if (!hasBooks) {
+                    list.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">Kitoblar mavjud emas.</td></tr>`;
+                }
+            } catch(e) { console.error("Books load failed", e); }
+        }
+
+        async function addBook(e) {
+            e.preventDefault();
+            const form = new FormData();
+            form.append("title", document.getElementById('bookTitle').value);
+            form.append("category", document.getElementById('bookCategory').value);
+            form.append("btype", document.getElementById('bookType').value);
+            form.append("file", document.getElementById('bookFile').files[0]);
+            
+            alert("Kitob yuklanmoqda... Kuting.");
+            try {
+                const response = await fetch("/api/admin/add-book", { method: "POST", body: form });
+                alert("Kitob muvaffaqiyatli qo'shildi!");
+                document.getElementById('addBookForm').reset();
+                loadBooks();
+            } catch(e) { alert("Xatolik: " + e); }
+        }
+
+        async function deleteBook(id) {
+            if (!confirm("Kitob o'chirilsinmi?")) return;
+            try {
+                await fetch(`/api/admin/books/${id}`, { method: "DELETE" });
+                alert("O'chirildi!");
+                loadBooks();
+            } catch(e) { alert("Xatolik: " + e); }
+        }
+
+        // LOAD TEMPLATES
+        async function loadTemplates() {
+            try {
+                const response = await fetch("/api/admin/templates");
+                const data = await response.json();
+                
+                const list = document.getElementById('templatesList');
+                list.innerHTML = "";
+                
+                if (data.length === 0) {
+                    list.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">Shablonlar mavjud emas.</td></tr>`;
+                    return;
+                }
+                
+                data.forEach(t => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${t.name}</td>
+                        <td>${t.category}</td>
+                        <td>
+                            <button class="btn-premium" onclick="deleteTemplate(${t.id})" style="padding:6px 12px; font-size:12px; background:var(--danger); box-shadow:none;"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    `;
+                    list.appendChild(row);
+                });
+            } catch(e) { console.error("Templates load failed", e); }
+        }
+
+        async function addTemplate(e) {
+            e.preventDefault();
+            const form = new FormData();
+            form.append("name", document.getElementById('tplName').value);
+            form.append("category", document.getElementById('tplCategory').value);
+            form.append("file", document.getElementById('tplFile').files[0]);
+            
+            try {
+                await fetch("/api/admin/add-template", { method: "POST", body: form });
+                alert("Shablon yuklandi!");
+                document.getElementById('addTemplateForm').reset();
+                loadTemplates();
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+        async function deleteTemplate(id) {
+            if (!confirm("Shablon o'chirilsinmi?")) return;
+            try {
+                await fetch(`/api/admin/templates/${id}`, { method: "DELETE" });
+                alert("O'chirildi!");
+                loadTemplates();
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+        // LOAD CHANNELS
+        async function loadChannels() {
+            try {
+                const response = await fetch("/api/admin/channels");
+                const data = await response.json();
+                
+                const list = document.getElementById('channelsList');
+                list.innerHTML = "";
+                
+                if (data.length === 0) {
+                    list.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">Sponsor kanallar yo'q.</td></tr>`;
+                    return;
+                }
+                
+                data.forEach(c => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${c.title}</td>
+                        <td><code>${c.url}</code></td>
+                        <td>
+                            <button class="btn-premium" onclick="deleteChannel(${c.id})" style="padding:6px 12px; font-size:12px; background:var(--danger); box-shadow:none;"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    `;
+                    list.appendChild(row);
+                });
+            } catch(e) { console.error("Channels load failed", e); }
+        }
+
+        async function addChannel(e) {
+            e.preventDefault();
+            const form = new FormData();
+            form.append("title", document.getElementById('chanTitle').value);
+            form.append("url", document.getElementById('chanUrl').value);
+            
+            try {
+                await fetch("/api/admin/add-channel", { method: "POST", body: form });
+                alert("Kanal qo'shildi!");
+                document.getElementById('addChannelForm').reset();
+                loadChannels();
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+        async function deleteChannel(id) {
+            if (!confirm("Kanal o'chirilsinmi?")) return;
+            try {
+                await fetch(`/api/admin/channels/${id}`, { method: "DELETE" });
+                alert("O'chirildi!");
+                loadChannels();
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+        // SAVE CONFIG SETTINGS
+        async function saveSettings(e) {
+            e.preventDefault();
+            const form = new FormData();
+            form.append("price", document.getElementById('settingsPrice').value);
+            form.append("card", document.getElementById('settingsCard').value);
+            form.append("contact", document.getElementById('settingsContact').value);
+            form.append("channel", document.getElementById('settingsChannel').value);
+            form.append("webapp_url", document.getElementById('settingsWebappUrl').value);
+            form.append("admin_password", document.getElementById('settingsPassword').value);
+            
+            try {
+                const response = await fetch("/api/admin/settings", { method: "POST", body: form });
+                alert("Sozlamalar saqlandi!");
+                document.getElementById('settingsPassword').value = ""; // clear password
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+        // SEND BROADCAST
+        async function sendBroadcast(e) {
+            e.preventDefault();
+            const text = document.getElementById('broadcastText').value;
+            const pin = document.getElementById('broadcastPin').checked;
+            
+            const form = new FormData();
+            form.append("text", text);
+            form.append("pin", pin);
+            
+            try {
+                const response = await fetch("/api/admin/broadcast", { method: "POST", body: form });
+                const res = await response.json();
+                alert(res.message);
+                document.getElementById('broadcastForm').reset();
+            } catch(e) { alert("Xato: " + e); }
+        }
+
+    </script>
+</body>
+</html>

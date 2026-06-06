@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talaba Service - Web App</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Style -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { padding-bottom: 75px; } /* Prevent bottom-bar overlap */
+        .loading-overlay {
+            position: fixed;
+            top:0; left:0; right:0; bottom:0;
+            background: rgba(10,11,16,0.85);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 9999;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .loading-overlay.active { opacity: 1; pointer-events: auto; }
+        .spinner {
+            width: 50px; height: 50px;
+            border: 5px solid rgba(255,255,255,0.1);
+            border-top: 5px solid var(--secondary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <h4 id="loadingText">AI ishlamoqda...</h4>
+        <p style="font-size:12px; margin-top:5px;">Iltimos kuting, bu biroz vaqt olishi mumkin.</p>
+    </div>
+
+    <!-- Hidden values -->
+    <input type="hidden" id="userId" value="{{ user_id }}">
+    <input type="hidden" id="isPrem" value="{{ '1' if is_prem else '0' }}">
+
+    <div class="main-container" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        
+        <!-- Header -->
+        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i class="fa-solid fa-graduation-cap" style="font-size: 28px; color: var(--secondary);"></i>
+                <h2 class="text-gradient-purple">Talaba Service</h2>
+            </div>
+            <div id="statusBadge" class="badge">FREE</div>
+        </header>
+
+        <!-- SCREEN 1: DASHBOARD -->
+        <div id="screenDashboard" class="webapp-screen active">
+            <div class="glass-card glow-card-primary" style="margin-bottom: 24px; text-align: center; background: linear-gradient(135deg, rgba(138,43,226,0.1), rgba(0,191,255,0.1));">
+                <h3>Xush kelibsiz!</h3>
+                <p style="margin-top: 8px; font-size: 14px;">Talaba hayotini osonlashtirish uchun universal aqlli yordamchi.</p>
+                <div style="margin-top:16px; font-size:12px;" id="expiryText"></div>
+            </div>
+
+            <!-- Referral Card -->
+            <div class="glass-card" style="margin-bottom: 24px;">
+                <h4>👥 Taklif qilish va Premium yutish</h4>
+                <p style="font-size: 13px; margin: 8px 0 16px 0;">Har 10 ta taklif qilingan do'stingiz uchun sizga 1 oylik Premium obuna bepul taqdim etiladi!</p>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:rgba(0,0,0,0.2); padding:10px; border-radius:10px;">
+                    <span style="font-size:13px; color:var(--text-secondary);">Taklif qilingan do'stlar:</span>
+                    <strong style="color:var(--secondary);" id="refCount">0</strong>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Sizning taklif havolangiz:</label>
+                    <div style="display:flex; gap:8px;">
+                        <input class="form-control" type="text" id="refLink" readonly style="font-size:12px;">
+                        <button class="btn-premium" onclick="copyRefLink()" style="padding:10px 16px;"><i class="fa-solid fa-copy"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main quick stats/actions -->
+            <div class="grid-container" style="grid-template-columns: 1fr 1fr;">
+                <div class="glass-card" style="text-align:center; cursor:pointer;" onclick="switchTab('tools')">
+                    <i class="fa-solid fa-wand-magic-sparkles" style="font-size: 32px; color: var(--secondary); margin-bottom:12px;"></i>
+                    <h4>AI Uskunalar</h4>
+                </div>
+                <div class="glass-card" style="text-align:center; cursor:pointer;" onclick="switchTab('deadlines')">
+                    <i class="fa-solid fa-clock" style="font-size: 32px; color: var(--accent); margin-bottom:12px;"></i>
+                    <h4>Deadline'lar</h4>
+                </div>
+                <div class="glass-card" style="text-align:center; cursor:pointer;" onclick="switchTab('library')">
+                    <i class="fa-solid fa-book" style="font-size: 32px; color: var(--success); margin-bottom:12px;"></i>
+                    <h4>Kutubxona</h4>
+                </div>
+                <div class="glass-card" style="text-align:center; cursor:pointer;" onclick="switchTab('premium')">
+                    <i class="fa-solid fa-gem" style="font-size: 32px; color: var(--warning); margin-bottom:12px;"></i>
+                    <h4>Premium sotib olish</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: AI TOOLS -->
+        <div id="screenTools" class="webapp-screen">
+            <h3 style="margin-bottom: 20px;">🧠 Sun'iy Intellekt Uskunalari</h3>
+            
+            <!-- Tool selection dropdown -->
+            <div class="form-group">
+                <label class="form-label">Uskunani tanlang:</label>
+                <select class="form-control" id="toolSelector" onchange="toggleToolForms()">
+                    <option value="referat">🧾 AI Referat Yozuvchi</option>
+                    <option value="ppt">📊 AI Prezentatsiya Slaydlari</option>
+                    <option value="homework">📝 Vazifa Yechuvchi (Vision)</option>
+                    <option value="essay">✍️ Insho Tekshiruvchi</option>
+                    <option value="tutor">🤖 AI Tutor Chat</option>
+                    <option value="flashcards">🎴 Flashcards (Yodlash)</option>
+                    <option value="gpa">🧮 GPA Hisoblagich</option>
+                </select>
+            </div>
+
+            <!-- TOOL: REFERAT -->
+            <div id="toolReferatForm" class="glass-card tool-form active">
+                <h4>🧾 AI Referat Yozuvchi</h4>
+                <p style="font-size: 13px; margin: 8px 0 16px 0;">Mavzuni yuboring va Word formatida akademik tilda referat yuklab oling.</p>
+                <div class="form-group">
+                    <label class="form-label">Referat mavzusi:</label>
+                    <input class="form-control" id="referatTopic" placeholder="Masalan: Kibernetika va xavfsizlik asoslari">
+                </div>
+                <button class="btn-premium" onclick="generateReferat()" style="width:100%; justify-content:center;">Referat yaratish (.docx)</button>
+            </div>
+
+            <!-- TOOL: PRESENTATION -->
+            <div id="toolPptForm" class="glass-card tool-form">
+                <h4>📊 AI Prezentatsiya Slaydlari</h4>
+                <p style="font-size: 13px; margin: 8px 0 16px 0;">Prezentatsiya mavzusini yozing, slayd rejasi va matnlarini tayyorlab beramiz.</p>
+                <div class="form-group">
+                    <label class="form-label">Mavzu:</label>
+                    <input class="form-control" id="pptTopic" placeholder="Masalan: Globallashuv va iqtisodiyot">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Dizayn shablonini tanlang:</label>
+                    <select class="form-control" id="pptTemplate">
+                        <option value="default">Standart (Ko'k dizayn)</option>
+                        <!-- Other templates dynamically loaded if any -->
+                    </select>
+                </div>
+                <button class="btn-premium" onclick="generatePresentation()" style="width:100%; justify-content:center;">Prezentatsiya yaratish (.pptx)</button>
+            </div>
+
+            <!-- TOOL: HOMEWORK SOLVER -->
+            <div id="toolHomeworkForm" class="glass-card tool-form">
+                <h4>📝 Vazifa Yechuvchi (Vision)</h4>
+                <p style="font-size: 13px; margin: 8px 0 16px 0;">Matematika, fizika yoki kimyo masalasining rasmini yuboring va qadam-baqadam yechimini oling.</p>
+                <div class="form-group">
+                    <label class="form-label">Vazifa rasmi:</label>
+                    <div class="file-upload-wrapper">
+                        <i class="fa-solid fa-cloud-arrow-up file-upload-icon"></i>
+                        <p style="font-size:14px;">Rasmni yuklang (.jpg / .png)</p>
+                        <input type="file" id="homeworkFile" accept="image/*" onchange="updateUploadLabel(this)">
+                    </div>
+                </div>
+                <button class="btn-premium" onclick="solveHomework()" style="width:100%; justify-content:center;">Yechimni olish</button>
+                <div class="form-group" style="margin-top:20px; display:none;" id="homeworkResultWrapper">
+                    <label class="form-label">AI Masala Yechimi:</label>
+                    <div class="form-control" id="homeworkResult" style="background:rgba(0,0,0,0.3); height:auto; overflow-y:auto; font-size:14px; white-space:pre-wrap;"></div>
+                </div>
+            </div>
+
+            <!-- TOOL: ESSAY CHECKER -->
+            <div id="toolEssayForm" class="glass-card tool-form">
+                <h4>✍️ Insho Tekshiruvchi</h4>
+                <p style="font-size: 13px; margin: 8px 0 16px 0;">Inshoni kiriting, grammatika, uslub tahlili va ballni baholab beramiz.</p>
+                <div class="form-group">
+                    <label class="form-label">Insho matni:</label>
+                    <textarea class="form-control" id="essayText" placeholder="Inshoni shu yerga kiriting (kamida 50 ta so'z)..."></textarea>
+                </div>
+                <button class="btn-premium" onclick="checkEssay()" style="width:100%; justify-content:center;">Inshoni tekshirish</button>
+                <div class="form-group" style="margin-top:20px; display:none;" id="essayResultWrapper">
+                    <label class="form-label">Tahlil natijasi:</label>
+                    <div class="form-control" id="essayResult" style="background:rgba(0,0,0,0.3); height:auto; overflow-y:auto; font-size:14px; white-space:pre-wrap;"></div>
+                </div>
+            </div>
+
+            <!-- TOOL: AI TUTOR -->
+            <div id="toolTutorForm" class="glass-card tool-form">
+                <h4>🤖 AI Tutor Chat</h4>
+                <p style="font-size: 13px; margin: 8px 0 16px 0;">Shaxsiy repititoringiz bilan istalgan mavzuda muloqot qiling.</p>
+                <div class="chat-window" id="chatWindow">
+                    <div class="chat-bubble chat-bubble-tutor">Salom! Men sizning shaxsiy repititoringizman. Bugun qaysi mavzuni muhokama qilamiz?</div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <input class="form-control" id="chatInput" placeholder="Savolingizni yozing..." onkeypress="handleChatKey(event)">
+                    <button class="btn-premium" onclick="sendChat()" style="padding:12px 16px;"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+
+            <!-- TOOL: FLASHCARDS -->
+            <div id="toolFlashcardsForm" class="glass-card tool-form">
+                <h4>🎴 Flashcards (Yodlash)</h4>
+                <p style="font-size: 13px; margin: 8px 0 16px 0;">O'rganmoqchi bo'lgan mavzuni yuboring, biz sizga 10 ta yodlash kartochkasini yaratib beramiz.</p>
+                <div class="form-group" id="fcTopicWrapper">
+                    <label class="form-label">Flashcard mavzusi:</label>
+                    <div style="display:flex; gap:8px;">
+                        <input class="form-control" id="flashcardTopic" placeholder="Masalan: Ingliz tili grammatikasi">
+                        <button class="btn-premium" onclick="generateFlashcards()">Yaratish</button>
+                    </div>
+                </div>
+                <!-- Interactive flipping cards -->
+                <div id="fcPlayArea" style="display:none; text-align:center; margin-top:20px;">
+                    <div class="flashcard-inner" onclick="flipCard()">
+                        <div class="flashcard-card">
+                            <div class="flashcard-front">
+                                <h4 style="color:var(--secondary);">SAVOL:</h4>
+                                <p id="fcQuestion" style="font-size:16px; margin-top:10px; font-weight:600;"></p>
+                            </div>
+                            <div class="flashcard-back">
+                                <h4 style="color:var(--primary);">JAVOB:</h4>
+                                <p id="fcAnswer" style="font-size:16px; margin-top:10px; font-weight:600;"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding:0 10px;">
+                        <button class="btn-secondary-glow" onclick="prevCard()"><i class="fa-solid fa-arrow-left"></i></button>
+                        <span id="fcCount">1 / 10</span>
+                        <button class="btn-secondary-glow" onclick="nextCard()"><i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                    <button class="btn-secondary-glow" onclick="resetFlashcardFlow()" style="margin-top:20px; font-size:12px; padding:8px 16px;">Yangi mavzu tanlash</button>
+                </div>
+            </div>
+
+            <!-- TOOL: GPA CALCULATOR -->
+            <div id="toolGpaForm" class="glass-card tool-form">
+                <h4>🧮 GPA Hisoblagich</h4>
+                <p style="font-size: 13px; margin: 8px 0 16px 0;">Fanlaringiz nomi, baho (0-100) va kredit yuklamalarini kiriting.</p>
+                
+                <div id="gpaRowsWrapper">
+                    <div class="gpa-row-input" id="gpaRow1">
+                        <input class="form-control" placeholder="Fan nomi" style="flex:2;">
+                        <input class="form-control" placeholder="Baho" type="number" style="flex:1;" min="0" max="100">
+                        <input class="form-control" placeholder="Kredit" type="number" style="flex:1;" min="1">
+                        <button class="btn-premium" onclick="deleteGpaRow(1)" style="background:var(--danger); box-shadow:none;"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+                
+                <button class="btn-secondary-glow" onclick="addGpaRow()" style="width:100%; margin:12px 0;"><i class="fa-solid fa-plus"></i> Fan qo'shish</button>
+                <button class="btn-premium" onclick="calculateGpa()" style="width:100%; justify-content:center;">GPA hisoblash</button>
+                
+                <div id="gpaResultWrapper" class="glass-card" style="margin-top:20px; display:none; text-align:center; background:rgba(0,230,118,0.1); border-color:var(--success);">
+                    <h4>GPA Natijasi:</h4>
+                    <h1 class="text-gradient-purple" id="gpaResultVal" style="font-size:48px; margin:10px 0;">4.00</h1>
+                    <p style="font-size:13px;" id="gpaDetails"></p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- SCREEN 3: DEADLINES -->
+        <div id="screenDeadlines" class="webapp-screen">
+            <h3 style="margin-bottom: 20px;">⏰ Deadline boshqaruvi</h3>
+            
+            <!-- Add deadline form -->
+            <div class="glass-card" style="margin-bottom:24px;">
+                <h4>Yangi deadline qo'shish</h4>
+                <div class="form-group" style="margin-top:12px;">
+                    <label class="form-label">Vazifa nomi:</label>
+                    <input class="form-control" id="dlTitle" placeholder="Masalan: Matematika mustaqil ishi">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Muddat (Sana va vaqt):</label>
+                    <input class="form-control" id="dlDate" placeholder="Format: 30.12.2026 18:00">
+                </div>
+                <button class="btn-premium" onclick="addDeadline()" style="width:100%; justify-content:center;">Saqlash</button>
+            </div>
+
+            <!-- Deadlines List -->
+            <div class="glass-card">
+                <h4>Mening deadline'larim</h4>
+                <div id="deadlinesList" style="margin-top:16px; display:flex; flex-direction:column; gap:12px;">
+                    <!-- Dynamically populated -->
+                    <p style="text-align:center; font-size:13px; color:var(--text-muted);">Sizda faol deadline'lar yo'q.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 4: LIBRARY -->
+        <div id="screenLibrary" class="webapp-screen">
+            <h3 style="margin-bottom: 20px;">📚 Onlayn Kutubxona</h3>
+            <p style="font-size: 13px; margin-bottom: 20px;">Fanning turli bo'limlari bo'yicha kitoblarni bevosita telefoningizga yuklab oling.</p>
+            
+            <div id="libraryContainer" style="display:flex; flex-direction:column; gap:20px;">
+                <!-- Dynamically populated categories -->
+                <p style="text-align:center; font-size:13px; color:var(--text-muted);">Kutubxonada kitoblar mavjud emas.</p>
+            </div>
+        </div>
+
+        <!-- SCREEN 5: PREMIUM CHECKOUT -->
+        <div id="screenPremium" class="webapp-screen">
+            <div class="glass-card glow-card-primary" style="margin-bottom: 24px; text-align: center; background: linear-gradient(135deg, rgba(255,0,127,0.1), rgba(138,43,226,0.1));">
+                <i class="fa-solid fa-gem" style="font-size: 48px; color: var(--warning); margin-bottom: 12px;"></i>
+                <h3 class="text-gradient-pink">Premium Tarif</h3>
+                <p style="margin-top: 8px; font-size: 14px;">Barcha AI uskunalar (Referat, Slayd, Vision Vazifa Yechuvchi, AI Tutor) va kutubxonani faollashtiring.</p>
+                <h2 style="margin-top:12px;" id="premPrice">25,000 so'm / oy</h2>
+            </div>
+
+            <div class="glass-card" style="margin-bottom: 24px;">
+                <h4>💳 To'lov qilish</h4>
+                <p style="font-size: 13px; margin: 8px 0 16px 0;">Quyidagi Humo yoki Uzcard kartasiga obuna narxini to'lang va to'lov tasdiqlovchi chek (skrinshot) rasmini yuklang.</p>
+                <div style="background:rgba(0,0,0,0.2); padding:16px; border-radius:12px; text-align:center; margin-bottom:16px;">
+                    <span style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">KARTA RAQAMI</span>
+                    <strong style="font-size:18px; color:var(--secondary);" id="premCard">9860 1201 1367 9696</strong>
+                    <span style="font-size:12px; color:var(--text-muted); display:block; margin-top:4px;">(Humo / Uzcard)</span>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">To'lov chekini yuklash:</label>
+                    <div class="file-upload-wrapper">
+                        <i class="fa-solid fa-file-invoice-dollar file-upload-icon"></i>
+                        <p style="font-size:14px;" id="proofLabel">Chek rasmini yuklang (.jpg / .png)</p>
+                        <input type="file" id="proofFile" accept="image/*" onchange="updateProofLabel(this)">
+                    </div>
+                </div>
+                <button class="btn-premium" onclick="submitPaymentProof()" style="width:100%; justify-content:center;">Chekni yuborish</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Web App Tabs Bottom Navigation -->
+    <nav class="webapp-tabs">
+        <div class="webapp-tab-item active" onclick="switchTab('dashboard')" id="tab_dashboard">
+            <i class="fa-solid fa-house"></i>
+            <span>Asosiy</span>
+        </div>
+        <div class="webapp-tab-item" onclick="switchTab('tools')" id="tab_tools">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>AI Uskunalar</span>
+        </div>
+        <div class="webapp-tab-item" onclick="switchTab('deadlines')" id="tab_deadlines">
+            <i class="fa-solid fa-clock"></i>
+            <span>Deadlinelar</span>
+        </div>
+        <div class="webapp-tab-item" onclick="switchTab('library')" id="tab_library">
+            <i class="fa-solid fa-book"></i>
+            <span>Kutubxona</span>
+        </div>
+        <div class="webapp-tab-item" onclick="switchTab('premium')" id="tab_premium">
+            <i class="fa-solid fa-gem"></i>
+            <span>Premium</span>
+        </div>
+    </nav>
+
+    <!-- Scripts -->
+    <script>
+        // Init state
+        const tg_id = parseInt(document.getElementById('userId').value);
+        let chatHistory = [];
+        let flashcards = [];
+        let currentFcIndex = 0;
+        let gpaRowCount = 1;
+
+        // Switch screen views
+        function switchTab(tabName) {
+            document.querySelectorAll('.webapp-screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.webapp-tab-item').forEach(t => t.classList.remove('active'));
+            
+            const targetScreen = document.getElementById('screen' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+            if (targetScreen) targetScreen.classList.add('active');
+            
+            const targetTab = document.getElementById('tab_' + tabName);
+            if (targetTab) targetTab.classList.add('active');
+            
+            // Reload specific content if tab changes
+            if (tabName === 'dashboard') loadUserInfo();
+            if (tabName === 'deadlines') loadDeadlines();
+            if (tabName === 'library') loadLibrary();
+        }
+
+        // Toggle form displays
+        function toggleToolForms() {
+            const selected = document.getElementById('toolSelector').value;
+            document.querySelectorAll('.tool-form').forEach(f => f.classList.remove('active'));
+            const target = document.getElementById('tool' + selected.charAt(0).toUpperCase() + selected.slice(1) + 'Form');
+            if (target) target.classList.add('active');
+        }
+
+        function updateUploadLabel(input) {
+            const wrapper = input.parentElement;
+            if (input.files.length > 0) {
+                wrapper.querySelector('p').innerText = input.files[0].name;
+                wrapper.style.borderColor = 'var(--success)';
+            }
+        }
+        function updateProofLabel(input) {
+            const label = document.getElementById('proofLabel');
+            if (input.files.length > 0) {
+                label.innerText = input.files[0].name;
+            }
+        }
+
+        // Display Loading Overlay
+        function showLoading(text) {
+            document.getElementById('loadingText').innerText = text;
+            document.getElementById('loadingOverlay').classList.add('active');
+        }
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+
+        // GET USER INFO
+        async function loadUserInfo() {
+            try {
+                const response = await fetch(`/api/user-info?tg_id=${tg_id}`);
+                const data = await response.json();
+                
+                // Expiry and details
+                const statusBadge = document.getElementById('statusBadge');
+                statusBadge.innerText = data.status;
+                if (data.is_premium) {
+                    statusBadge.className = 'badge badge-success';
+                    document.getElementById('expiryText').innerHTML = `⏳ Premium muddati: <strong>${data.expiry}</strong>`;
+                } else {
+                    statusBadge.className = 'badge badge-danger';
+                    document.getElementById('expiryText').innerText = 'Sizda bepul tarif faol. Premium uskunalar yopiq.';
+                }
+                
+                // Referral links
+                document.getElementById('refCount').innerText = data.referral_count;
+                document.getElementById('refLink').value = data.referral_link;
+                
+                // Prices
+                document.getElementById('premPrice').innerText = data.price + " so'm / oy";
+                document.getElementById('premCard').innerText = data.card;
+            } catch(e) {
+                console.error("UserInfo load error", e);
+            }
+        }
+
+        function copyRefLink() {
+            const copyText = document.getElementById("refLink");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(copyText.value);
+            alert("Referal havola buferga nusxalandi!");
+        }
+
+        // AI REFERAT
+        async function generateReferat() {
+            const topic = document.getElementById('referatTopic').value.trim();
+            if (!topic) return alert("Iltimos, mavzuni kiriting.");
+            
+            showLoading("AI Referat yozmoqda. Word fayli tayyorlanmoqda...");
+            
+            try {
+                const form = new FormData();
+                form.append("tg_id", tg_id);
+                form.append("topic", topic);
+                
+                const response = await fetch("/api/referat", {
+                    method: "POST",
+                    body: form
+                });
+                
+                if (response.status === 403) {
+                    alert("Bu funksiya faqat Premium foydalanuvchilar uchun!");
+                    hideLoading();
+                    return;
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `referat_${topic.substring(0,15)}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch(e) {
+                alert("Noma'lum xatolik yuz berdi: " + e);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // AI PRESENTATION
+        async function generatePresentation() {
+            const topic = document.getElementById('pptTopic').value.trim();
+            if (!topic) return alert("Iltimos, mavzuni kiriting.");
+            
+            showLoading("AI Taqdimot yaratmoqda. Slaydlar tayyorlanmoqda...");
+            
+            try {
+                const form = new FormData();
+                form.append("tg_id", tg_id);
+                form.append("topic", topic);
+                form.append("template_id", document.getElementById('pptTemplate').value);
+                
+                const response = await fetch("/api/presentation", {
+                    method: "POST",
+                    body: form
+                });
+                
+                if (response.status === 403) {
+                    alert("Bu funksiya faqat Premium foydalanuvchilar uchun!");
+                    hideLoading();
+                    return;
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prezentatsiya_${topic.substring(0,15)}.pptx`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch(e) {
+                alert("Noma'lum xatolik yuz berdi: " + e);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // HOMEWORK VISION SOLVER
+        async function solveHomework() {
+            const fileInput = document.getElementById('homeworkFile');
+            if (fileInput.files.length === 0) return alert("Iltimos, rasm yuklang.");
+            
+            showLoading("AI rasmni o'qib, masalani yechmoqda...");
+            
+            try {
+                const form = new FormData();
+                form.append("tg_id", tg_id);
+                form.append("file", fileInput.files[0]);
+                
+                const response = await fetch("/api/homework", {
+                    method: "POST",
+                    body: form
+                });
+                
+                if (response.status === 403) {
+                    alert("Bu funksiya faqat Premium foydalanuvchilar uchun!");
+                    hideLoading();
+                    return;
+                }
+                
+                const data = await response.json();
+                document.getElementById('homeworkResult').innerText = data.solution;
+                document.getElementById('homeworkResultWrapper').style.display = 'block';
+            } catch(e) {
+                alert("Xatolik: " + e);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ESSAY CHECKER
+        async function checkEssay() {
+            const essayText = document.getElementById('essayText').value.trim();
+            if (essayText.length < 10) return alert("Insho matni juda qisqa.");
+            
+            showLoading("AI inshoni tekshirmoqda...");
+            
+            try {
+                const form = new FormData();
+                form.append("tg_id", tg_id);
+                form.append("essay_text", essayText);
+                
+                const response = await fetch("/api/essay", {
+                    method: "POST",
+                    body: form
+                });
+                
+                if (response.status === 403) {
+                    alert("Bu funksiya faqat Premium foydalanuvchilar uchun!");
+                    hideLoading();
+                    return;
+                }
+                
+                const data = await response.json();
+                document.getElementById('essayResult').innerText = data.analysis;
+                document.getElementById('essayResultWrapper').style.display = 'block';
+            } catch(e) {
+                alert("Xatolik: " + e);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // AI TUTOR CHAT
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            input.value = "";
+            const chatWindow = document.getElementById('chatWindow');
+            
+            // Add user bubble
+            const userBubble = document.createElement('div');
+            userBubble.className = 'chat-bubble chat-bubble-user';
+            userBubble.innerText = message;
+            chatWindow.appendChild(userBubble);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            
+            // Show tutor typing placeholder
+            const typingBubble = document.createElement('div');
+            typingBubble.className = 'chat-bubble chat-bubble-tutor';
+            typingBubble.innerText = "Yozmoqda...";
+            chatWindow.appendChild(typingBubble);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            
+            try {
+                const form = new FormData();
+                form.append("tg_id", tg_id);
+                form.append("message", message);
+                form.append("history", JSON.stringify(chatHistory));
+                
+                const response = await fetch("/api/tutor", {
+                    method: "POST",
+                    body: form
+                });
+                
+                if (response.status === 403) {
+                    typingBubble.innerText = "Xato: Repititor faqat Premium foydalanuvchilar uchun.";
+                    return;
+                }
+                
+                const data = await response.json();
+                typingBubble.innerText = data.response;
+                
+                // Update memory history
+                chatHistory.push({"role": "user", "content": message});
+                chatHistory.push({"role": "tutor", "content": data.response});
+            } catch(e) {
+                typingBubble.innerText = "Xatolik yuz berdi.";
+            } finally {
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+        }
+
+        function handleChatKey(e) {
+            if (e.key === 'Enter') sendChat();
+        }
+
+        // FLASHCARDS
+        async function generateFlashcards() {
+            const topic = document.getElementById('flashcardTopic').value.trim();
+            if (!topic) return alert("Mavzuni kiriting.");
+            
+            showLoading("AI flashcardlarni tayyorlamoqda...");
+            
+            try {
+                const form = new FormData();
+                form.append("tg_id", tg_id);
+                form.append("topic", topic);
+                
+                const response = await fetch("/api/flashcards", {
+                    method: "POST",
+                    body: form
+                });
+                
+                if (response.status === 403) {
+                    alert("Bu funksiya faqat Premium foydalanuvchilar uchun!");
+                    hideLoading();
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                // Parse AI response. Typically SAVOL / JAVOB text format
+                const rawText = data.flashcards;
+                const blocks = rawText.split(/(?:SAVOL:|Savol:)/i);
+                flashcards = [];
+                
+                blocks.forEach(block => {
+                    if (!block.trim()) return;
+                    const parts = block.split(/(?:JAVOB:|Javob:)/i);
+                    if (parts.length >= 2) {
+                        flashcards.push({
+                            question: parts[0].trim(),
+                            answer: parts[1].replace(/Flashcard\s*\d*/gi, '').trim()
+                        });
+                    }
+                });
+                
+                if (flashcards.length === 0) {
+                    alert("Flashcard topilmadi yoki format xato. Mavzuni boshqa so'z bilan kiritib ko'ring.");
+                    return;
+                }
+                
+                currentFcIndex = 0;
+                showFlashcard();
+                
+                document.getElementById('fcTopicWrapper').style.display = 'none';
+                document.getElementById('fcPlayArea').style.display = 'block';
+            } catch(e) {
+                alert("Xatolik: " + e);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function showFlashcard() {
+            const cardInner = document.querySelector('.flashcard-inner');
+            cardInner.classList.remove('flipped'); // Reset rotation
+            
+            const card = flashcards[currentFcIndex];
+            document.getElementById('fcQuestion').innerText = card.question;
+            document.getElementById('fcAnswer').innerText = card.answer;
+            document.getElementById('fcCount').innerText = `${currentFcIndex + 1} / ${flashcards.length}`;
+        }
+        
+        function flipCard() {
+            document.querySelector('.flashcard-inner').classList.toggle('flipped');
+        }
+        
+        function nextCard() {
+            if (flashcards.length === 0) return;
+            currentFcIndex = (currentFcIndex + 1) % flashcards.length;
+            showFlashcard();
+        }
+        function prevCard() {
+            if (flashcards.length === 0) return;
+            currentFcIndex = (currentFcIndex - 1 + flashcards.length) % flashcards.length;
+            showFlashcard();
+        }
+        function resetFlashcardFlow() {
+            document.getElementById('fcTopicWrapper').style.display = 'block';
+            document.getElementById('fcPlayArea').style.display = 'none';
+        }
+
+        // GPA CALCULATOR
+        function addGpaRow() {
+            gpaRowCount++;
+            const wrapper = document.getElementById('gpaRowsWrapper');
+            const row = document.createElement('div');
+            row.className = 'gpa-row-input';
+            row.id = `gpaRow${gpaRowCount}`;
+            row.innerHTML = `
+                <input class="form-control" placeholder="Fan nomi" style="flex:2;">
+                <input class="form-control" placeholder="Baho" type="number" style="flex:1;" min="0" max="100">
+                <input class="form-control" placeholder="Kredit" type="number" style="flex:1;" min="1">
+                <button class="btn-premium" onclick="deleteGpaRow(${gpaRowCount})" style="background:var(--danger); box-shadow:none;"><i class="fa-solid fa-trash"></i></button>
+            `;
+            wrapper.appendChild(row);
+        }
+        function deleteGpaRow(id) {
+            const row = document.getElementById(`gpaRow${id}`);
+            if (row) row.remove();
+        }
+        function calculateGpa() {
+            const rows = document.querySelectorAll('.gpa-row-input');
+            let totalPoints = 0;
+            let totalCredits = 0;
+            let count = 0;
+            
+            rows.forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                const score = parseFloat(inputs[1].value);
+                const credit = parseFloat(inputs[2].value);
+                
+                if (!isNaN(score) && !isNaN(credit)) {
+                    const grade = (score / 100.0) * 4.0;
+                    totalPoints += grade * credit;
+                    totalCredits += credit;
+                    count++;
+                }
+            });
+            
+            if (count === 0 || totalCredits === 0) {
+                return alert("Kamida bitta fanning Baho va Kredit qiymatlarini to'g'ri kiriting.");
+            }
+            
+            const gpa = totalPoints / totalCredits;
+            document.getElementById('gpaResultVal').innerText = gpa.toFixed(2);
+            document.getElementById('gpaDetails').innerHTML = `📚 Fanlar soni: <strong>${count}</strong> | 🔢 Jami kreditlar: <strong>${totalCredits}</strong>`;
+            document.getElementById('gpaResultWrapper').style.display = 'block';
+        }
+
+        // DEADLINES
+        async function loadDeadlines() {
+            try {
+                const response = await fetch(`/api/deadlines?tg_id=${tg_id}`);
+                const data = await response.json();
+                
+                const list = document.getElementById('deadlinesList');
+                if (data.length === 0) {
+                    list.innerHTML = `<p style="text-align:center; font-size:13px; color:var(--text-muted);">Sizda faol deadline'lar yo'q.</p>`;
+                    return;
+                }
+                
+                list.innerHTML = "";
+                data.forEach(dl => {
+                    const card = document.createElement('div');
+                    card.className = 'glass-card';
+                    card.style.padding = '16px';
+                    card.style.display = 'flex';
+                    card.style.justifyContent = 'space-between';
+                    card.style.alignItems = 'center';
+                    card.innerHTML = `
+                        <div>
+                            <strong style="display:block;">${dl.title}</strong>
+                            <span style="font-size:12px; color:var(--text-secondary);"><i class="fa-solid fa-calendar-days"></i> ${dl.due_date}</span>
+                        </div>
+                        <button class="btn-premium" onclick="deleteDeadline(${dl.id})" style="background:var(--danger); box-shadow:none; padding:8px 12px;"><i class="fa-solid fa-trash"></i></button>
+                    `;
+                    list.appendChild(card);
+                });
+            } catch(e) {
+                console.error("Deadlines load failed", e);
+            }
+        }
+
+        async function addDeadline() {
+            const title = document.getElementById('dlTitle').value.trim();
+            const date = document.getElementById('dlDate').value.trim();
+            
+            if (!title || !date) return alert("Iltimos, barcha maydonlarni to'ldiring.");
+            
+            const form = new FormData();
+            form.append("tg_id", tg_id);
+            form.append("title", title);
+            form.append("due_date", date);
+            
+            showLoading("Muddat saqlanmoqda...");
+            try {
+                const response = await fetch("/api/deadlines", {
+                    method: "POST",
+                    body: form
+                });
+                const res = await response.json();
+                if (res.error) {
+                    alert(res.error);
+                } else {
+                    document.getElementById('dlTitle').value = "";
+                    document.getElementById('dlDate').value = "";
+                    alert("Muvaffaqiyatli saqlandi!");
+                    loadDeadlines();
+                }
+            } catch(e) {
+                alert("Xato: " + e);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function deleteDeadline(id) {
+            if (!confirm("Ushbu deadline o'chirilsinmi?")) return;
+            
+            try {
+                const response = await fetch(`/api/deadlines/${id}`, {
+                    method: "DELETE"
+                });
+                alert("O'chirildi.");
+                loadDeadlines();
+            } catch(e) {
+                alert("Xato: " + e);
+            }
+        }
+
+        // LIBRARY
+        async function loadLibrary() {
+            try {
+                const response = await fetch("/api/library");
+                const data = await response.json();
+                
+                const container = document.getElementById('libraryContainer');
+                
+                if (Object.keys(data).length === 0) {
+                    container.innerHTML = `<p style="text-align:center; font-size:13px; color:var(--text-muted);">Kutubxonada kitoblar mavjud emas.</p>`;
+                    return;
+                }
+                
+                container.innerHTML = "";
+                for (let category in data) {
+                    const catBlock = document.createElement('div');
+                    catBlock.className = 'glass-card';
+                    
+                    let bookListHTML = `<h4 style="margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:8px;"><i class="fa-solid fa-folder-open" style="color:var(--secondary);"></i> ${category}</h4>`;
+                    data[category].forEach(book => {
+                        bookListHTML += `
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:rgba(255,255,255,0.02); padding:8px 12px; border-radius:8px;">
+                                <span style="font-size:13px;"><i class="fa-solid fa-file-pdf" style="color:var(--danger); margin-right:6px;"></i> ${book.title}</span>
+                                <a class="btn-premium" href="/api/library/download/${book.id}" style="padding:6px 12px; font-size:11px; box-shadow:none;"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        `;
+                    });
+                    
+                    catBlock.innerHTML = bookListHTML;
+                    container.appendChild(catBlock);
+                }
+            } catch(e) {
+                console.error("Library load failed", e);
+            }
+        }
+
+        // PAYMENT PROOF UPLOAD
+        async function submitPaymentProof() {
+            const proofInput = document.getElementById('proofFile');
+            if (proofInput.files.length === 0) return alert("To'lov rasmini yuklang.");
+            
+            showLoading("To'lov cheki serverga yuklanmoqda...");
+            
+            try {
+                const form = new FormData();
+                form.append("tg_id", tg_id);
+                form.append("proof", proofInput.files[0]);
+                
+                const response = await fetch("/api/pay-proof", {
+                    method: "POST",
+                    body: form
+                });
+                
+                const res = await response.json();
+                if (res.success) {
+                    alert("Chek muvaffaqiyatli qabul qilindi! Admin tasdiqlashi bilan Premium statusi yoqiladi.");
+                    proofInput.parentElement.querySelector('p').innerText = "Chek rasmini yuklang (.jpg / .png)";
+                    proofInput.parentElement.style.borderColor = 'var(--border-color)';
+                } else {
+                    alert("Yuklashda xato.");
+                }
+            } catch(e) {
+                alert("Xatolik: " + e);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Load dynamic template options if available
+        async function loadTemplateOptions() {
+            try {
+                const response = await fetch("/api/admin/templates");
+                if (response.status === 200) {
+                    const data = await response.json();
+                    const selector = document.getElementById('pptTemplate');
+                    data.forEach(tpl => {
+                        const opt = document.createElement('option');
+                        opt.value = tpl.id;
+                        opt.innerText = `${tpl.name} (${tpl.category})`;
+                        selector.appendChild(opt);
+                    });
+                }
+            } catch(e) {}
+        }
+
+        // Initial loads
+        loadUserInfo();
+        loadTemplateOptions();
+
+    </script>
+</body>
+</html>

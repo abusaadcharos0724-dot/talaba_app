@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talaba Bot - Admin Login</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-container">
+
+    <div class="glass-card login-card glow-card-primary">
+        <div class="sidebar-logo" style="justify-content: center; margin-bottom: 24px;">
+            <i class="fa-solid fa-graduation-cap"></i>
+            <span class="text-gradient-purple">Talaba Bot</span>
+        </div>
+        
+        <h3 style="text-align: center; margin-bottom: 8px;">Admin Tizimi</h3>
+        <p style="text-align: center; margin-bottom: 24px; font-size: 14px;">Boshqaruv paneliga kirish uchun parolni kiriting.</p>
+        
+        {% if error %}
+        <div class="badge badge-danger" style="display: flex; width: 100%; justify-content: center; margin-bottom: 20px; border-radius: 8px;">
+            <i class="fa-solid fa-circle-exclamation" style="margin-right: 8px;"></i> {{ error }}
+        </div>
+        {% endif %}
+        
+        <form action="/admin/login" method="POST">
+            <div class="form-group">
+                <label class="form-label" for="password">Admin Paroli</label>
+                <input class="form-control" type="password" id="password" name="password" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" class="btn-premium" style="width: 100%; justify-content: center; margin-top: 10px;">
+                Kirish <i class="fa-solid fa-arrow-right-to-bracket"></i>
+            </button>
+        </form>
+    </div>
+
+</body>
+</html>
